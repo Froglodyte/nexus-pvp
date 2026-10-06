@@ -201,3 +201,29 @@ func TestHTLC_UnauthorizedRefund_Rejected(t *testing.T) {
 		t.Fatalf("expected unauthorized refund to fail, but succeeded")
 	}
 }
+
+func TestHTLC_AmountCents_Precision(t *testing.T) {
+	ledger := NewMemoryLedger()
+	contract := NewHTLCContract()
+
+	preimage := "precision_test_preimage"
+	hash := sha256.Sum256([]byte(preimage))
+	hashLock := hex.EncodeToString(hash[:])
+
+	now := time.Now().Unix()
+	timelock := now + 100
+	amount := 1250.75 // $1,250.75 -> exactly 125075 cents
+
+	escrow, err := contract.CreateEscrow(ledger, "ESCROW-PRECISION-01", "CITI_NY", "beneficiary@upi", amount, "USD", hashLock, timelock, now)
+	if err != nil {
+		t.Fatalf("failed to create escrow: %v", err)
+	}
+
+	if escrow.AmountCents != 125075 {
+		t.Fatalf("expected AmountCents 125075, got %d", escrow.AmountCents)
+	}
+	if escrow.GetAmountCents() != 125075 {
+		t.Fatalf("expected GetAmountCents() 125075, got %d", escrow.GetAmountCents())
+	}
+}
+

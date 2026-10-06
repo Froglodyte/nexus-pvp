@@ -6,9 +6,10 @@ interface ProofModalProps {
   isOpen: boolean;
   onClose: () => void;
   escrow: HTLCEscrow | null;
+  onOpenIso?: () => void;
 }
 
-export const ProofModal: React.FC<ProofModalProps> = ({ isOpen, onClose, escrow }) => {
+export const ProofModal: React.FC<ProofModalProps> = ({ isOpen, onClose, escrow, onOpenIso }) => {
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
 
   if (!isOpen || !escrow) return null;
@@ -150,7 +151,21 @@ export const ProofModal: React.FC<ProofModalProps> = ({ isOpen, onClose, escrow 
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/80 flex justify-end">
+        <div className="p-4 border-t border-slate-800 bg-slate-900/80 flex justify-between items-center">
+          {onOpenIso ? (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenIso();
+              }}
+              className="px-3.5 py-1.5 bg-purple-950/50 hover:bg-purple-900/60 border border-purple-500/40 text-purple-300 rounded-xl text-xs font-semibold transition-colors flex items-center space-x-1.5"
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span>View ISO 20022 XML</span>
+            </button>
+          ) : (
+            <div />
+          )}
           <button
             onClick={onClose}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition-colors"

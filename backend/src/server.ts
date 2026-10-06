@@ -30,6 +30,8 @@ app.post('/api/refund', remitController.refundRemittance);
 app.post('/api/fast-forward', remitController.fastForwardTimelock);
 app.get('/api/escrows', remitController.listEscrows);
 app.get('/api/escrows/:id', remitController.getEscrowById);
+app.get('/api/escrows/:id/iso20022', remitController.getIso20022);
+app.get('/api/metrics', remitController.getMetrics);
 app.get('/api/beneficiaries', remitController.listBeneficiaries);
 app.get('/api/events', remitController.getRecentEvents);
 app.get('/api/system-status', remitController.getSystemStatus);

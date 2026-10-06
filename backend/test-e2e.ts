@@ -84,6 +84,14 @@ async function testSuite() {
   });
   console.log('Refund Result:', refundRes.body.escrow.escrowId, 'State:', refundRes.body.escrow.state, 'Refunded To:', refundRes.body.escrow.disbursedTo);
 
+  // 6. Test ISO 20022 Endpoint
+  const isoRes = await request(`/api/escrows/${settleRes.body.escrow.escrowId}/iso20022`);
+  console.log('ISO 20022 pacs.008 MsgId:', isoRes.body.metadata.messageId, 'Contains pacs.002:', Boolean(isoRes.body.pacs002));
+
+  // 7. Test Metrics Endpoint
+  const metricsRes = await request('/api/metrics');
+  console.log(`Corridor Metrics: Settled USD $${metricsRes.body.totalSettledUsd}, Total Savings $${metricsRes.body.totalSavingsUsd}, Herstatt Risk: ${metricsRes.body.herstattRiskIncidents}`);
+
   console.log('\nAll End-to-End API and Settlement tests completed successfully!');
 }
 

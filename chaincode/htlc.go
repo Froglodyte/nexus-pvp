@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,7 @@ type HTLCEscrow struct {
 	SenderID       string      `json:"senderId"`
 	ReceiverVPA    string      `json:"receiverVpa"`
 	Amount         float64     `json:"amount"`
+	AmountCents    int64       `json:"amountCents"`    // Fixed-point integer fractional units (cents) to avoid IEEE 754 drift
 	TokenSymbol    string      `json:"tokenSymbol"`
 	HashLock       string      `json:"hashLock"`       // Hex-encoded SHA-256 hash (64 hex characters)
 	TimeLock       int64       `json:"timeLock"`       // Unix timestamp in seconds
@@ -51,6 +53,15 @@ type HTLCEscrow struct {
 	SettledAt      int64       `json:"settledAt,omitempty"`
 	RefundedAt     int64       `json:"refundedAt,omitempty"`
 	DisbursedTo    string      `json:"disbursedTo,omitempty"`
+}
+
+// GetAmountCents returns the integer value in lowest fractional currency units (e.g. cents/paise)
+// to prevent floating-point rounding errors in financial ledgers.
+func (e *HTLCEscrow) GetAmountCents() int64 {
+	if e.AmountCents != 0 {
+		return e.AmountCents
+	}
+	return int64(math.Round(e.Amount * 100))
 }
 
 // LedgerState represents the key-value ledger interface (abstracting Fabric stub / Drunix world state)
@@ -175,6 +186,7 @@ func (c *HTLCContract) CreateEscrow(
 		SenderID:       senderID,
 		ReceiverVPA:    receiverVPA,
 		Amount:         amount,
+		AmountCents:    int64(math.Round(amount * 100)),
 		TokenSymbol:    strings.ToUpper(tokenSymbol),
 		HashLock:       cleanHashLock,
 		TimeLock:       timeLock,

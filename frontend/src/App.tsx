@@ -10,13 +10,18 @@ import {
   Sparkles,
   AlertOctagon,
   CheckCircle,
+  FileCode,
 } from 'lucide-react';
 import { CitiPanel } from './components/CitiPanel.js';
 import { NpciPanel } from './components/NpciPanel.js';
 import { CorridorTimeline } from './components/CorridorTimeline.js';
 import { ProofModal } from './components/ProofModal.js';
+import { IsoModal } from './components/IsoModal.js';
+import { KpiRibbon } from './components/KpiRibbon.js';
+import { LedgerExplorer } from './components/LedgerExplorer.js';
 import {
   CorridorEvent,
+  CorridorMetrics,
   FXQuote,
   HTLCEscrow,
   SystemStatus,
@@ -33,16 +38,20 @@ export const App: React.FC = () => {
   const [receiverVpa, setReceiverVpa] = useState<string>('priya.sharma@okhdfcbank');
   const [quote, setQuote] = useState<FXQuote | null>(null);
   const [activeEscrow, setActiveEscrow] = useState<HTLCEscrow | null>(null);
+  const [escrows, setEscrows] = useState<HTLCEscrow[]>([]);
+  const [metrics, setMetrics] = useState<CorridorMetrics | null>(null);
   const [beneficiaries, setBeneficiaries] = useState<VPAResolution[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [events, setEvents] = useState<CorridorEvent[]>([]);
   const [simulateFailure, setSimulateFailure] = useState<boolean>(false);
 
-  // Loading states
+  // Loading & Modal states
   const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isRefunding, setIsRefunding] = useState<boolean>(false);
   const [isProofModalOpen, setIsProofModalOpen] = useState<boolean>(false);
+  const [isIsoModalOpen, setIsIsoModalOpen] = useState<boolean>(false);
+  const [inspectorEscrow, setInspectorEscrow] = useState<HTLCEscrow | null>(null);
   const [isWsConnected, setIsWsConnected] = useState<boolean>(false);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -60,14 +69,15 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Fetch initial beneficiaries and system status
+  // Fetch initial beneficiaries, escrows, metrics, and system status
   const fetchInitialData = useCallback(async () => {
     try {
-      const [beneficiariesRes, statusRes, eventsRes, escrowsRes] = await Promise.all([
+      const [beneficiariesRes, statusRes, eventsRes, escrowsRes, metricsRes] = await Promise.all([
         fetch(`${API_BASE}/api/beneficiaries`),
         fetch(`${API_BASE}/api/system-status`),
         fetch(`${API_BASE}/api/events`),
         fetch(`${API_BASE}/api/escrows`),
+        fetch(`${API_BASE}/api/metrics`),
       ]);
 
       if (beneficiariesRes.ok) {
@@ -84,10 +94,15 @@ export const App: React.FC = () => {
       }
       if (escrowsRes.ok) {
         const escrowsData = await escrowsRes.json();
-        if (escrowsData.escrows && escrowsData.escrows.length > 0) {
-          // Set latest escrow
-          setActiveEscrow(escrowsData.escrows[0]);
+        if (escrowsData.escrows) {
+          setEscrows(escrowsData.escrows);
+          // Set latest active escrow if none active
+          setActiveEscrow((prev) => prev ?? (escrowsData.escrows.length > 0 ? escrowsData.escrows[0] : null));
         }
+      }
+      if (metricsRes?.ok) {
+        const mData = await metricsRes.json();
+        setMetrics(mData);
       }
     } catch {
       // ignore initial network error
@@ -353,10 +368,26 @@ export const App: React.FC = () => {
               <span>{isWsConnected ? 'Live WebSocket' : 'Connecting...'}</span>
             </div>
 
+            {/* ISO 20022 Direct Quick Inspector button */}
+            {activeEscrow && (
+              <button
+                onClick={() => {
+                  setInspectorEscrow(activeEscrow);
+                  setIsIsoModalOpen(true);
+                }}
+                className="px-2.5 py-1 rounded-lg bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/30 text-purple-300 font-medium transition-colors flex items-center space-x-1"
+                title="View ISO 20022 XML for active escrow"
+              >
+                <FileCode className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">ISO 20022 XML</span>
+              </button>
+            )}
+
             {/* Clear/Reset button */}
             <button
               onClick={() => {
                 setActiveEscrow(null);
+                setInspectorEscrow(null);
                 fetchInitialData();
               }}
               title="Reset Corridor State"
@@ -400,6 +431,9 @@ export const App: React.FC = () => {
 
       {/* Main Split-View Dashboard Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Executive KPI Ribbon */}
+        <KpiRibbon metrics={metrics} />
+
         {/* Two Institutional Portals Side-by-Side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Portal: Citi Wholesale Treasury */}
@@ -427,7 +461,10 @@ export const App: React.FC = () => {
             simulateFailure={simulateFailure}
             onSettle={handleSettle}
             isSettling={isSettling}
-            onViewProofModal={() => setIsProofModalOpen(true)}
+            onViewProofModal={() => {
+              setInspectorEscrow(activeEscrow);
+              setIsProofModalOpen(true);
+            }}
           />
         </div>
 
@@ -440,15 +477,47 @@ export const App: React.FC = () => {
           onFastForward={handleFastForward}
           onRefund={handleRefund}
           isRefunding={isRefunding}
-          onViewProofModal={() => setIsProofModalOpen(true)}
+          onViewProofModal={() => {
+            setInspectorEscrow(activeEscrow);
+            setIsProofModalOpen(true);
+          }}
+        />
+
+        {/* Drunix Ledger State Explorer & Audit Log */}
+        <LedgerExplorer
+          escrows={escrows}
+          activeEscrowId={activeEscrow?.escrowId}
+          onSelectEscrow={(esc) => setActiveEscrow(esc)}
+          onViewProof={(esc) => {
+            setInspectorEscrow(esc);
+            setIsProofModalOpen(true);
+          }}
+          onViewIso={(esc) => {
+            setInspectorEscrow(esc);
+            setIsIsoModalOpen(true);
+          }}
         />
       </main>
 
       {/* Cryptographic Proof Inspector Modal */}
       <ProofModal
         isOpen={isProofModalOpen}
-        onClose={() => setIsProofModalOpen(false)}
-        escrow={activeEscrow}
+        onClose={() => {
+          setIsProofModalOpen(false);
+          setInspectorEscrow(null);
+        }}
+        escrow={inspectorEscrow || activeEscrow}
+        onOpenIso={() => setIsIsoModalOpen(true)}
+      />
+
+      {/* ISO 20022 Financial Messaging Modal */}
+      <IsoModal
+        isOpen={isIsoModalOpen}
+        onClose={() => {
+          setIsIsoModalOpen(false);
+          setInspectorEscrow(null);
+        }}
+        escrow={inspectorEscrow || activeEscrow}
       />
 
       {/* Institutional Footer */}

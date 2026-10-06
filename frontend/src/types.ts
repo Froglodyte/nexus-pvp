@@ -105,3 +105,35 @@ export interface SystemStatus {
     settledVolumeInr: number;
   };
 }
+
+export interface Iso20022Bundle {
+  pacs008: string;
+  pacs002?: string;
+  pacs004?: string;
+  metadata: {
+    messageId: string;
+    uetr: string;
+    clearingChannel: string;
+    senderBic: string;
+    receiverBic: string;
+    instructedAmount: string;
+    settlementAmount: string;
+    fxRate: number;
+    status: string;
+  };
+}
+
+export interface CorridorMetrics {
+  totalEscrows: number;
+  settledCount: number;
+  refundedCount: number;
+  lockedCount: number;
+  totalSettledUsd: number;
+  totalSettledInr: number;
+  totalSavingsUsd: number;
+  averageSettlementLatencyMs: number;
+  herstattRiskIncidents: number;
+  atomicRollbackSuccessRate: string;
+  timestamp: number;
+}
+
