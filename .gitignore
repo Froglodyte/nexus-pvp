@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Production output
+dist/
+build/
+
+# Go artifacts
+*.exe
+*.test
+*.out
+htlc-engine
+chaincode/htlc-engine
+
+# Logs & Environment
+*.log
+.env
+.env.*
+!.env.example
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
